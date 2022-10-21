@@ -1,0 +1,1150 @@
+import { MdOutlineArrowBackIosNew } from "react-icons/md";
+
+import { FaSearch, FaSort, FaSpinner } from "react-icons/fa";
+
+import {
+  AiOutlineShoppingCart,
+  AiOutlineFilter,
+  AiFillHeart,
+  AiOutlineHeart,
+  AiOutlineConsoleSql,
+} from "react-icons/ai";
+import Image from "next/image";
+
+import { Swiper, SwiperSlide } from "swiper/react";
+import { FreeMode, Pagination } from "swiper";
+import "swiper/css";
+import "swiper/css/free-mode";
+import "swiper/css/pagination";
+import React, { useEffect, useState, useContext, useReducer } from "react";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import { AppContext } from "./_app";
+import InfiniteScroll from "react-infinite-scroller";
+
+import SlidingPane from "react-sliding-pane";
+import "react-sliding-pane/dist/react-sliding-pane.css";
+
+import { debounce } from "lodash";
+import { getToken, getTokenType } from "../layout/utils";
+import ProductListLoader from "../components/common/ProductListLoader";
+import { shortDesc } from "../hooks/TextHelper";
+
+const sortOptionsData = [
+  //   {
+  //   name: "Suggested",
+  //   image: "/products/Sort/Unselected/suggested_unselected.imageset/conversation_unselected@2x.png",
+  //   selectedImage: "/products/Sort/Selected/suggested_selected.imageset/conversation_selected@2x.png",
+  // },
+  // {
+  //   name: "Discount",
+  //   image: "/products/Sort/Unselected/discount_unselected.imageset/sale_unselected@2x.png",
+  //   selectedImage: "/products/Sort/Selected/discount_selected.imageset/sale_selected@2x.png",
+  // },
+  // {
+  //   name: "Latest",
+  //   image: "/products/Sort/Unselected/latest_unselected.imageset/new_unselected@2x.png",
+  //   selectedImage: "/products/Sort/Selected/latest_selected.imageset/new_selected@2x.png",
+  // },
+  {
+    name: "Name",
+    image:
+      "/products/Sort/Unselected/latest_unselected.imageset/new_unselected@2x.png",
+    selectedImage:
+      "/products/Sort/Selected/latest_selected.imageset/new_selected@2x.png",
+  },
+  {
+    name: "Low to High",
+    image:
+      "/products/Sort/Unselected/low_to_high_unselect.imageset/low_up@2x.png",
+    selectedImage:
+      "/products/Sort/Selected/low_to_high_selected.imageset/low_up_selected@2x.png",
+  },
+  {
+    name: "High to Low",
+    image:
+      "/products/Sort/Unselected/high_to_low_unselect.imageset/low_down@2x.png",
+    selectedImage:
+      "/products/Sort/Selected/high_to_low_selected.imageset/low_down_selected@2x.png",
+  },
+];
+
+export default function Products(props) {
+  const appData = useContext(AppContext);
+  const router = useRouter();
+
+  const queryString = router.query;
+  const APIUrl = process.env.NEXT_PUBLIC_API_URL;
+  const countryCode = appData.countryCode;
+  const imgUrl =
+    process.env.NEXT_PUBLIC_IMAGE_URL ||
+    "https://newness.net/pub/media/catalog/product/";
+
+  const [categoryId, setCategoryId] = useState(
+    queryString.catId ? queryString.catId : "73"
+  );
+  const [brandId, setBrandId] = useState(
+    queryString.pBrandId ? queryString.pBrandId : ""
+  );
+
+  const [selectedFilter, setSelectedFilter] = useState();
+  const [selectedOptions, setSelectedOptions] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState();
+  const [searchData, setSearchData] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [productListData, setProductListData] = useState([]);
+  const [sortBy, setSortBy] = useState("");
+  const [hasLoadMore, setHasLoadMore] = useState(true);
+  // const [showSort, setShowSort] = useReducer((show) => !show, false);
+  const [showSort, setShowSort] = useState(false);
+
+  const [searchPane, setSearchPane] = useState({
+    showSearchPane: false,
+  });
+
+  const [filterPane, setFilterPane] = useState({
+    showFilterPane: false,
+  });
+
+  let subCategories = [];
+  if (categories && categories.length > 0) {
+    subCategories = categories.filter((cat) => cat.id == queryString.pCatId);
+    if (subCategories.length > 0) {
+      subCategories = subCategories["0"].children_data;
+    }
+  }
+
+  const fetchProductList = async (
+    catetoryId,
+    sortBy,
+    brandId = "",
+    currentPage = 1
+  ) => {
+    const customertoken = getToken();
+    setLoading(true);
+
+    let productUrl = `${APIUrl}/${countryCode.toLowerCase()}/V1/wt-products?`;
+    let filterParamObj = {
+      "searchCriteria[filter_groups][0][filters][0][field]": "category_id",
+      "searchCriteria[filter_groups][0][filters][0][condition_type]": "eq",
+      "searchCriteria[filter_groups][0][filters][0][value]": catetoryId,
+      "searchCriteria[filter_groups][1][filters][0][condition_type]": "in",
+      "searchCriteria[filter_groups][1][filters][0][value]": "4",
+      "searchCriteria[filter_groups][1][filters][0][field]": "visibility",
+      "searchCriteria[currentPage]": currentPage ? currentPage : "1",
+      "searchCriteria[pageSize]": itemsPerPage,
+    };
+
+    if (sortBy === "Low to High") {
+      filterParamObj = {
+        ...filterParamObj,
+        ...{
+          "searchCriteria[sortOrders][0][field]": "price",
+          "searchCriteria[sortOrders][0][direction]": "ASC",
+        },
+      };
+    } else if (sortBy === "High to Low") {
+      filterParamObj = {
+        ...filterParamObj,
+        ...{
+          "searchCriteria[sortOrders][0][field]": "price",
+          "searchCriteria[sortOrders][0][direction]": "DESC",
+        },
+      };
+    } else if (sortBy === "Name") {
+      filterParamObj = {
+        ...filterParamObj,
+        ...{
+          "searchCriteria[sortOrders][0][field]": "name",
+          "searchCriteria[sortOrders][0][direction]": "ASC",
+        },
+      };
+    }
+
+    if (brandId && brandId !== "") {
+      filterParamObj = {
+        ...filterParamObj,
+        ...{
+          "searchCriteria[filter_groups][2][filters][0][field]": "manufacturer",
+          "searchCriteria[filter_groups][2][filters][0][condition_type]": "eq",
+          "searchCriteria[filter_groups][2][filters][0][value]": brandId,
+        },
+      };
+    }
+
+    productUrl += new URLSearchParams(filterParamObj);
+
+    try {
+      const res = await fetch(productUrl, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${customertoken}`,
+        },
+      });
+      const data = await res.json();
+      if (data.length < 20) {
+        setHasLoadMore(false);
+      }
+      setProductListData(data);
+    } catch (err) {
+      console.log(err);
+    }
+    setLoading(false);
+  };
+
+  const searchProducts = async (keywords) => {
+    const customertoken = getToken();
+
+    setLoading(true);
+    let productUrl = `${APIUrl}/${countryCode.toLowerCase()}/V1/wt-search?`;
+    let filterParamObj = {
+      "searchCriteria[filter_groups][0][filters][0][field]": "search_term",
+      "searchCriteria[filter_groups][0][filters][0][value]": keywords,
+      "searchCriteria[filter_groups][1][filters][0][field]": "visibility",
+      "searchCriteria[filter_groups][1][filters][0][condition_type]": "in",
+      "searchCriteria[filter_groups][1][filters][0][value]": "4",
+      "searchCriteria[requestName]": "quick_search_container",
+    };
+    productUrl += new URLSearchParams(filterParamObj);
+
+    try {
+      const res = await fetch(productUrl, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${customertoken}`,
+        },
+      });
+      const data = await res.json();
+      setSearchData(data);
+      setLoading(false);
+    } catch (err) {
+      console.log(err);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const setFixed = () => {
+      // setFix(window.scrollY >= 950);
+      console.log("On Scroll Called");
+      // if(showSort)
+      setShowSort(false);
+
+      // if(searchPane.showSearchPane)
+      //   setSearchPane(old=>({...old,showSearchPane: false}))
+    };
+
+    window.addEventListener("scroll", setFixed);
+
+    return () => {
+      window.removeEventListener("scroll", setFixed);
+    };
+  }, []);
+
+  const addToWishlist = async (productid) => {
+    const customertoken = getToken();
+    let TokenTYpe = getTokenType();
+    setLoading(true);
+    // alert(TokenTYpe)
+    if (TokenTYpe === "guest") {
+      router.push({ pathname: "/sign-in", query: router.query });
+    }
+    try {
+      const res = await fetch(
+        `${APIUrl}/${countryCode.toLowerCase()}/V1/addwishlist`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            data: {
+              customerid: appData.customerid,
+              productid: productid,
+            },
+          }),
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${customertoken}`,
+          },
+        }
+      );
+      const data = await res.json();
+      if (data.success === 200) {
+        fetchProductList(categoryId, sortBy);
+      }
+    } catch (err) {
+      console.log(err);
+    }
+    setLoading(false);
+  };
+
+  const removeFromWishlist = async (productid) => {
+    const customertoken = getToken();
+    setLoading(true);
+
+    try {
+      const res = await fetch(
+        `${APIUrl}/${countryCode.toLowerCase()}/V1/deletewishlist`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            data: {
+              customerid: appData.customerid,
+              productid: productid,
+            },
+          }),
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${customertoken}`,
+          },
+        }
+      );
+      const data = await res.json();
+      if (data.success === 200) {
+        fetchProductList(categoryId, sortBy);
+      }
+    } catch (err) {
+      console.log(err);
+    }
+    setLoading(false);
+  };
+
+  const handleAddToWishlist = (product) => {
+    addToWishlist(product.id);
+  };
+
+  const handleRemoveFromWishlist = (product) => {
+    removeFromWishlist(product.id);
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    if (router.query) {
+      const queryString = router.query;
+      setCategoryId(queryString.pCatId ? queryString.pCatId : "73");
+      setBrandId(queryString.pBrandId ? queryString.pBrandId : "");
+      setSearchPane({
+        ...searchPane,
+        keyword: queryString.search ? queryString.search : "",
+      });
+    }
+
+    fetchProductList(categoryId, sortBy, brandId);
+
+    let loadLsCategories = localStorage.getItem("categories") || "";
+    loadLsCategories =
+      loadLsCategories && loadLsCategories !== ""
+        ? JSON.parse(loadLsCategories)
+        : [];
+    setCategories(loadLsCategories);
+    setLoading(false);
+  }, [categoryId, brandId, sortBy, router]);
+
+  const handleActiveCategory = (catid) => {
+    setCategoryId(catid);
+    setItemsPerPage(10); // reset to 10
+    fetchProductList(catid, sortBy); // For sub categories
+  };
+
+  const loadMoreProducts = () => {
+    if (searchPane.keyword && searchPane.keyword !== "") {
+      return;
+    }
+    if (!loading) {
+      const nextItems = itemsPerPage + 10;
+      setItemsPerPage(nextItems);
+      fetchProductList(categoryId, sortBy);
+    }
+  };
+
+  const handleSelectedFilter = (filter) => {
+    console.log("Handle Selected Filter");
+    /*
+    It Will Reset the items every time when filter is selected
+    And Fill With New Filtered Data
+    That's Why Previous Filtered Data is not showing/Lost
+
+    setSelectedFilter(filter);
+     */
+
+    /*
+    Category is Fetching From productListData
+
+    Option Is Fething From Here
+     selectedFilter = [
+      {
+        filter_name: 'Category', 
+        attribute_code : "category_id"
+        attribute_input_type : ""
+        filter_max_price : null
+        filter_min_price : null
+        filter_name : "Category"
+        filter_options : (1) [{...}, {...}]
+      },
+      {
+        filter_name: 'Price', 
+        attribute_code : "category_id"
+        attribute_input_type : ""
+        filter_max_price : null
+        filter_min_price : null
+        filter_name : "Category"
+        filter_options : (1) [{...}, {...}]
+      }
+    ]
+
+    // When Filter is Selected
+    selectedFilter = [
+      {
+        "filter_name": "Category",
+        "attribute_code": "category_id",
+        "attribute_input_type": "",
+        "filter_options": [
+            {
+                "label": "New Arrivals",
+                "value": "107",
+                "count": "4293"
+            },{
+                "label": "Perfumes",
+                "value": "789",
+                "count": "1425"
+            }
+        ],
+        "filter_min_price": null,
+        "filter_max_price": null,
+        "selectedOptions": [
+            "107"
+        ]
+      },
+    ]
+    */
+    // Check Whether selectedOptions is empty or not
+    // If Empty then remove that filter from selectedFilter
+    // If Not Empty then add that filter to selectedFilter
+
+    setSelectedFilter(filter);
+    console.log("Selected Filter");
+    console.log(selectedFilter);
+
+    let filterObj = {
+      filter_name: filter.filter_name,
+      attribute_code: filter.attribute_code,
+      attribute_input_type: filter.attribute_input_type,
+      filter_options: filter.filter_options,
+      filter_min_price: filter.filter_min_price,
+      filter_max_price: filter.filter_max_price,
+      selectedOptions: filter.selectedOptions,
+    };
+
+    setSelectedCategory({"filter_name" : filter.filter_name})
+
+    // Check Wheter selectedOptions is empty or not
+    if (selectedOptions.length === 0) {
+      // Store filterObj into setSelectedOption
+      setSelectedOptions([...selectedOptions, filterObj]);
+    } else {
+      // Check Whether filterObj is already exists or not
+      console.log(" >>> Else statement of <<<")
+      console.log(selectedOptions);
+      let filterObjIndex = selectedOptions.findIndex(
+        (item) => item.filter_name === filter.filter_name
+      );
+      if (filterObjIndex === -1) {
+        // Store filterObj into setSelectedOption
+        setSelectedOptions([...selectedOptions, filterObj]);
+      }/*  else {
+        // Update filterObj into setSelectedOption
+        selectedOptions[filterObjIndex] = filterObj;
+        setSelectedOptions([...selectedOptions]);
+      } */
+    }
+
+    console.log(" >>>> Selected Category After Filtering >>>>");
+    setSelectedFilter(selectedOptions.find(item => item.filter_name === filter.filter_name));
+    console.log(selectedFilter);
+
+    console.log(" ++++ Selected Options ++++ ");
+
+    console.log(selectedOptions);
+
+    /* setFriends((prevFriends) => [
+        ...prevFriends,
+        {
+            name: "Random Friend Name",
+            age: 20, // Random age
+        },
+    ]); */
+  };
+
+  const handleSearch = debounce((keywords) => {
+    if (keywords.length > 3) {
+      searchProducts(keywords);
+    }
+  }, 1000);
+
+  const onSearchSubmit = (e) => {
+    e.preventDefault();
+    const keywords = e.target.psearch.value;
+    if (keywords.length > 2) {
+      searchProducts(keywords);
+      setSearchPane({
+        ...searchPane,
+        showSearchPane: false,
+        keyword: keywords,
+      });
+    }
+  };
+
+  const handleClearSearch = () => {
+    searchProducts([]);
+    setSearchPane({ ...searchPane, showSearchPane: false, keyword: "" });
+    HandleOpenCloseFilter(false);
+  };
+
+  const handleBrandNavigation = (href) => {
+    setSearchPane({ ...searchPane, showSearchPane: false, keyword: "" });
+    router.push(href);
+  };
+
+  const handleCatNavigation = (href) => {
+    setSearchPane({ ...searchPane, showSearchPane: false, keyword: "" });
+    router.push(href);
+  };
+
+  const handleSelectedFilterOptions = (value) => {
+    console.log("Handle Selected Filter Options");
+    const newOptions = selectedFilter.selectedOptions
+      ? selectedFilter.selectedOptions.slice()
+      : [];
+    if (newOptions.includes(value)) {
+      newOptions = newOptions.filter((val) => val !== value);
+    } else {
+      newOptions.push(value);
+    }
+
+    setSelectedFilter({ ...selectedFilter, selectedOptions: newOptions });
+    console.log("Selected Filter");
+    console.log(selectedFilter);
+
+    // Check Wheter selectedOptions is empty or not
+    if (selectedOptions.length === 0) {
+      // Store filterObj into setSelectedOption
+      setSelectedOptions((prevOption) => [
+        ...prevOption,
+        {
+          filter_name: selectedOptions.filter_name,
+          attribute_code: selectedOptions.attribute_code,
+          attribute_input_type: selectedOptions.attribute_input_type,
+          filter_options: selectedOptions.filter_options,
+          filter_min_price: selectedOptions.filter_min_price,
+          filter_max_price: selectedOptions.filter_max_price,
+          selectedOptions: newOptions,
+        },
+      ]);
+    } else {
+      // Check Whether filterObj is already exists or not
+      console.log(selectedOptions);
+      let filterObjIndex = selectedOptions.findIndex(
+        (item) => item.filter_name === selectedFilter.filter_name
+      );
+      if (filterObjIndex === -1) {
+        // Store filterObj into setSelectedOption
+        setSelectedOptions([...selectedOptions, selectedFilter]);
+      } else {
+        // Update filterObj into setSelectedOption
+        selectedOptions[filterObjIndex] = selectedFilter;
+        setSelectedOptions([...selectedOptions]);
+      }
+      /* setSelectedOptions({...selectedFilter, selectedOptions: newOptions})
+    console.log("Selected Options"); */
+      console.log(selectedOptions);
+    }
+  };
+
+  const HandleOpenCloseFilter = (open) => {
+    setFilterPane({ ...filterPane, showFilterPane: open });
+  };
+
+  const HandleFilterApplyButton = () => {
+    setFilterPane({ ...filterPane, showFilterPane: false });
+    console.log(selectedFilter);
+  };
+
+  return (
+    <div className="product-search-page">
+      <div className="sticky-filter-header">
+        <SlidingPane
+          closeIcon={<MdOutlineArrowBackIosNew />}
+          isOpen={searchPane.showSearchPane}
+          from="bottom"
+          width="100%"
+          title={
+            <div className="custom-pane-header">
+              <Image
+                src="/logo.png"
+                alt="Newness"
+                width={696 * 0.2}
+                height={142 * 0.2}
+              />
+              <span onClick={() => handleClearSearch()} className="link">
+                Clear All
+              </span>
+            </div>
+          }
+          onRequestClose={() =>
+            setSearchPane({ ...searchPane, showSearchPane: false })
+          }
+        >
+          <div className="searchpane">
+            <div
+              className="search-bar"
+              onClick={() =>
+                setSearchPane({ ...searchPane, showSearchPane: true })
+              }
+            >
+              <span className="search-icon">
+                <FaSearch />{" "}
+              </span>
+              <form onSubmit={(e) => onSearchSubmit(e)}>
+                <input
+                  className="form-control"
+                  name="psearch"
+                  defaultValue={searchPane.keyword}
+                  type="text"
+                  onChange={(e) => handleSearch(e.target.value)}
+                  placeholder="Search for product and category"
+                />
+              </form>
+            </div>
+
+            <div className="sp-recommended">
+              <h3>Recommended for you</h3>
+              <div className="reco-cats">
+                {searchData &&
+                  searchData?.brand?.length > 0 &&
+                  searchData.brand.map((brand) => {
+                    return (
+                      <span
+                        onClick={() =>
+                          handleBrandNavigation({
+                            pathname: "/products",
+                            query: { pBrandId: brand.id, pCatId: categoryId },
+                          })
+                        }
+                        key={brand.id}
+                        className="btn btn-secondary btn-sm me-2 mb-2"
+                      >
+                        {brand.brand_name}
+                      </span>
+                    );
+                  })}
+                {searchData &&
+                  searchData?.category?.length > 0 &&
+                  searchData.category.map((cat) => {
+                    return (
+                      <span
+                        onClick={() =>
+                          handleCatNavigation({
+                            pathname: "/products",
+                            query: { pCatId: cat.id },
+                          })
+                        }
+                        key={cat.id}
+                        className="btn btn-secondary btn-sm me-2 mb-2"
+                      >
+                        {cat.name}
+                      </span>
+                    );
+                  })}
+              </div>
+            </div>
+          </div>
+        </SlidingPane>
+
+        <SlidingPane
+          closeIcon={<MdOutlineArrowBackIosNew />}
+          isOpen={filterPane.showFilterPane}
+          from="bottom"
+          width="100%"
+          title={
+            <div
+              className="custom-pane-header"
+              onClick={() => handleClearSearch()}
+            >
+              <Image
+                src="/logo.png"
+                alt="Newness"
+                width={696 * 0.2}
+                height={142 * 0.2}
+              />
+              <span className="link">Clear All</span>
+            </div>
+          }
+          // onRequestClose={() => setFilterPane({ ...filterPane, showFilterPane: false })}
+          onRequestClose={() => HandleOpenCloseFilter(false)}
+        >
+          <div className="filterpane">
+            <div className="sp-recommended">
+              <div className="product-cats-modal">
+                <div className="product-catlist">
+                  {productListData &&
+                    productListData.filters &&
+                    productListData.filters &&
+                    productListData.filters["0"].available_filters &&
+                    productListData.filters["0"].available_filters.length > 0 &&
+                    productListData.filters["0"].available_filters.map(
+                      (filter, idx) => {
+                        return (
+                          <p
+                            className={
+                              selectedFilter === filter ? "fcactive" : ""
+                            }
+                            onClick={() => handleSelectedFilter(filter)}
+                            key={idx}
+                          >
+                            {filter.filter_name}
+                          </p>
+                        );
+                      }
+                    )}
+                </div>
+                <div className="product-catres">
+                  {selectedFilter &&
+                    selectedFilter.filter_options.map((option) => {
+                      return (
+                        <div key={option.value} className="pcoption">
+                          <div className="form-check">
+                            <label className="form-check-label">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                onChange={() =>
+                                  handleSelectedFilterOptions(option.value)
+                                }
+                                checked={
+                                  selectedFilter.selectedOptions &&
+                                  selectedFilter.selectedOptions.includes(
+                                    option.value
+                                  )
+                                    ? true
+                                    : false
+                                }
+                              />
+                              {option.label}
+                            </label>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+            <div className="pfactions">
+              <button
+                className="btn btn-secondary"
+                onClick={() => HandleOpenCloseFilter(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => HandleFilterApplyButton()}
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </SlidingPane>
+
+        <div className="psproduct-header d-flex align-items-center justify-content-between">
+          <div className="goback-icon" onClick={() => router.back()}>
+            <span>
+              <MdOutlineArrowBackIosNew />
+            </span>
+          </div>
+          <div
+            className="search-bar"
+            onClick={() =>
+              setSearchPane({ ...searchPane, showSearchPane: true })
+            }
+          >
+            <span className="search-icon">
+              <FaSearch />{" "}
+            </span>
+            <input
+              className="form-control"
+              type="text"
+              defaultValue={searchPane?.keyword}
+              placeholder="Tap to search product"
+            />
+          </div>
+          <div className="cart-icon">
+            <Link href="/cart">
+              <span className="cart-with-count position-relative">
+                <span className="badge rounded-1 badge-primary bg-primary text-white position-absolute">
+                  {appData.cart.count}
+                </span>
+                <AiOutlineShoppingCart />
+              </span>
+            </Link>
+          </div>
+        </div>
+
+        <div className="product-short-bar d-flex align-items-center justify-content-between">
+          <span className="plisted-items">
+            Total Listed Items:{" "}
+            {productListData ? productListData?.products?.total_count : 0}
+          </span>
+          <span className="psort-items" onClick={() => setShowSort(true)}>
+            <FaSort /> Sort
+          </span>
+          <span
+            className="pfilter-items"
+            onClick={() => HandleOpenCloseFilter(true)}
+          >
+            <AiOutlineFilter /> Filter
+          </span>
+        </div>
+
+        {showSort && (
+          <div className="sort-cards">
+            <Swiper
+              slidesPerView={3.3}
+              spaceBetween={10}
+              freeMode={true}
+              modules={[FreeMode]}
+              breakpoints={{
+                400: {
+                  width: 300,
+                  slidesPerView: 3.3,
+                },
+                640: {
+                  width: 640,
+                  slidesPerView: 4.3,
+                },
+                768: {
+                  width: 768,
+                  slidesPerView: 5,
+                },
+              }}
+            >
+              {sortOptionsData &&
+                sortOptionsData.length > 0 &&
+                sortOptionsData.map((option, oid) => (
+                  <SwiperSlide key={oid}>
+                    <div
+                      className={
+                        sortBy === option.name
+                          ? "card text-white bg-secondary text-center"
+                          : "card bg-light text-center"
+                      }
+                      onClick={() => setSortBy(option.name)}
+                    >
+                      {sortBy === option.name && (
+                        <Image
+                          src={option.selectedImage}
+                          alt={option.name}
+                          width="50"
+                          height="50"
+                        />
+                      )}
+                      {sortBy !== option.name && (
+                        <Image
+                          src={option.image}
+                          alt={option.name}
+                          width="50"
+                          height="50"
+                        />
+                      )}
+                      <div className="sctitle">{option.name}</div>
+                    </div>
+                  </SwiperSlide>
+                ))}
+            </Swiper>
+          </div>
+        )}
+      </div>
+
+      <div className="searched-product-list">
+        <div className="product-cats container-fluid">
+          <Swiper
+            slidesPerView={3.3}
+            spaceBetween={10}
+            freeMode={true}
+            modules={[FreeMode]}
+            breakpoints={{
+              640: {
+                width: 300,
+                slidesPerView: 3.3,
+              },
+              768: {
+                width: 768,
+                slidesPerView: 5,
+              },
+            }}
+          >
+            {subCategories &&
+              subCategories.map((cat) => (
+                <SwiperSlide key={cat.id}>
+                  <span
+                    className={
+                      categoryId === cat.id
+                        ? "btn btn-primary"
+                        : "btn btn-light"
+                    }
+                    onClick={() => handleActiveCategory(cat.id)}
+                  >
+                    {cat.name}
+                  </span>
+                </SwiperSlide>
+              ))}
+          </Swiper>
+        </div>
+        {/* {loading && <>
+        <div className='product-loader'>
+          <ProductListLoader/>
+        </div>
+        </>} */}
+
+        <InfiniteScroll
+          pageStart={currentPage}
+          loadMore={loadMoreProducts}
+          // hasMore={(!searchPane.keyword || searchPane.keyword === '') ? false : true}
+          hasMore={hasLoadMore}
+          loader={<ProductListLoader />}
+        >
+          <div
+            className={
+              loading
+                ? " filtered-products loading-overlar"
+                : "filtered-products"
+            }
+          >
+            {(!searchPane.keyword || searchPane.keyword === "") &&
+              productListData &&
+              productListData.products &&
+              productListData.products.total_count > 0 &&
+              productListData.products.items.map((item, idx) => {
+                return (
+                  <div
+                    key={item.id}
+                    className="card border-0 product-slide-card"
+                  >
+                    <div className="heart-icon">
+                      {!item.extension_attributes.is_added_in_wishlist && (
+                        <AiOutlineHeart
+                          onClick={() => handleAddToWishlist(item)}
+                        />
+                      )}
+                      {item.extension_attributes.is_added_in_wishlist && (
+                        <span className="text-primary">
+                          <AiFillHeart
+                            onClick={() => handleRemoveFromWishlist(item)}
+                          />
+                        </span>
+                      )}
+                    </div>
+                    <div className="fpimage shadow shadow-sm bg-light">
+                      <Link href={`/product/${item.sku}`}>
+                        <div className="productsslide">
+                          <Swiper
+                            slidesPerView={1}
+                            spaceBetween={0}
+                            freeMode={true}
+                            pagination={{
+                              clickable: true,
+                            }}
+                            className="mySwiper"
+                            modules={[Pagination]}
+                          >
+                            {item.media_gallery_entries &&
+                              item.media_gallery_entries.length > 0 &&
+                              item.media_gallery_entries.map((cat) => (
+                                <SwiperSlide key={cat.id}>
+                                  <Image
+                                    src={imgUrl + cat.file}
+                                    alt={cat.label}
+                                    width="150"
+                                    height="225"
+                                  />
+                                </SwiperSlide>
+                              ))}
+                          </Swiper>
+                        </div>
+                      </Link>
+                    </div>
+                    {item?.extension_attributes?.price && (
+                      <div
+                        className="brandname"
+                        style={{ paddingLeft: "10px" }}
+                      >
+                        <strong>
+                          {item?.extension_attributes?.brand_name}
+                        </strong>
+                      </div>
+                    )}
+                    <div className="fptitle text-muted p_short-desc">
+                      {shortDesc(item.name)}
+                    </div>
+                    <div
+                      className="fprice"
+                      style={{ display: "flex", paddingLeft: "10px" }}
+                    >
+                      <del>{item?.extension_attributes?.price}</del>
+                      <span
+                        className="text-primary"
+                        style={{ marginLeft: "8px", fontSize: "14px" }}
+                      >
+                        {item?.extension_attributes?.product_discount_price}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+
+            {searchData &&
+              searchData?.search_data?.total_count > 0 &&
+              searchData?.search_data.products.map((item, idx) => {
+                return (
+                  <div
+                    key={item.id}
+                    className="card border-0 product-slide-card"
+                  >
+                    <div className="heart-icon">
+                      {!item.extension_attributes.is_added_in_wishlist && (
+                        <AiOutlineHeart
+                          onClick={() => handleAddToWishlist(item)}
+                        />
+                      )}
+                      {item.extension_attributes.is_added_in_wishlist && (
+                        <span className="text-primary">
+                          <AiFillHeart
+                            onClick={() => handleRemoveFromWishlist(item)}
+                          />
+                        </span>
+                      )}
+                    </div>
+                    <div className="fpimage shadow shadow-sm bg-light">
+                      {/* <Link href={`/product/`}>
+                {item.productimageurl &&
+                  <Image src={item.productimageurl} alt="" width="150" height="225" />
+                }
+              </Link> */}
+                      <div className="productsslide">
+                        <Swiper
+                          slidesPerView={1}
+                          spaceBetween={0}
+                          freeMode={true}
+                          pagination={{
+                            clickable: true,
+                          }}
+                          className="mySwiper"
+                          modules={[Pagination]}
+                        >
+                          {item.media_gallery_entries &&
+                            item.media_gallery_entries.length > 0 &&
+                            item.media_gallery_entries.map((cat) => (
+                              <SwiperSlide key={cat.id}>
+                                <Image
+                                  src={imgUrl + cat.file}
+                                  alt={cat.label}
+                                  width="150"
+                                  height="225"
+                                />
+                              </SwiperSlide>
+                            ))}
+                        </Swiper>
+                      </div>
+                    </div>
+                    {item?.extension_attributes?.price && (
+                      <div className="brandname">
+                        <strong>
+                          {item?.extension_attributes?.brand_name}
+                        </strong>
+                      </div>
+                    )}
+                    <div className="fptitle text-muted">{item.name}</div>
+                    <div className="fprice">
+                      <del>{item?.extension_attributes?.price}</del>
+                      <span className="text-primary">
+                        {item?.extension_attributes?.product_discount_price}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+
+            {productListData.products &&
+              productListData.products.total_count === 0 && (
+                <p>Items not found.</p>
+              )}
+          </div>
+        </InfiniteScroll>
+      </div>
+    </div>
+  );
+
+  function productFilterOptionList() {
+            /* <div className="product-catres">
+                  {selectedFilter &&
+                    selectedFilter.filter_options.map((option) => {
+                      return (
+                        <div key={option.value} className="pcoption">
+                          <div className="form-check">
+                            <label className="form-check-label">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                onChange={() =>
+                                  handleSelectedFilterOptions(option.value)
+                                }
+                                checked={
+                                  selectedFilter.selectedOptions &&
+                                  selectedFilter.selectedOptions.includes(
+                                    option.value
+                                  )
+                                    ? true
+                                    : false
+                                }
+                              />
+                              {option.label}
+                            </label>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div> */
+
+    return (
+      <div className="product-catres">
+        {
+        selectedOptions && selectedOptions.length > 0 && selectedOptions.map((option) => {
+          { option.filter_name === selectedCategory.filter_name && option.filter_options.map((option) => {
+            return (
+              <div key={option.value} className="pcoption">
+                <div className="form-check">
+                  <label className="form-check-label">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      onChange={() => handleSelectedFilterOptions(option.value)}
+                      checked={
+                        selectedOptions &&
+                        selectedOptions.includes(option.value)
+                          ? true
+                          : false
+                      }
+                    />
+                    {option.label}
+                  </label>
+                </div>
+              </div>
+            );
+          })}
+
+      
+        })}
+     </div>
+    );
+  }
+}

@@ -1,0 +1,248 @@
+.mainHomeContent {
+  background-color: #fff;
+  position: relative;
+  top: -30px;
+  border-radius: 20px 20px 0 0;
+  margin-bottom: 30px;
+}
+
+/* YouMayLike styles */
+.youMayLike {
+  padding: 15px;
+}
+.youMayLike h2 {
+  font-size: 16px;
+  margin-bottom: 15px;
+}
+.youMayLike .imageContainer {
+  position: relative;
+}
+.youMayLike img {
+  border-radius: 10px;
+}
+.imageContainer svg {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  font-size: 22px;
+  color: #fff;
+}
+.buttonContainer {
+  display: grid;
+  place-items: center;
+  margin-top: 15px;
+}
+.youMayLike button {
+  background: linear-gradient(180deg, #3b62ff, #485fbd);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 50px;
+  border: none;
+}
+
+/* New Arrivals */
+.newArrivals {
+  padding: 15px 15px 30px 15px;
+  text-align: center;
+}
+.newArrivals h2 {
+  font-size: 16px;
+  margin-bottom: 15px;
+  text-align: left;
+}
+.newArrivals img {
+  border-radius: 50%;
+  border: 3px solid #3b62ff !important;
+}
+.newArrivals .arrivalName {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* Featured Products styles */
+.featuredProducts {
+  padding: 15px;
+}
+.featuredProducts h2 {
+  font-size: 16px;
+}
+.featuredProductsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+.featuredProducts button {
+  color: #3b62ff;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  font-size: 14px;
+  font-weight: 700;
+}
+.featuredProducts .card {
+  border: 1px solid #bebebe;
+  border-radius: 10px;
+  padding: 6px;
+  width: 161px;
+}
+.featuredProducts .card img {
+  border-radius: 10px;
+}
+.featuredProducts .card h3 {
+  margin: 5px 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #454444;
+}
+.featuredProducts .card p {
+  color: #3b62ff;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  text-align: center;
+}
+.featuredProducts .card s {
+  font-size: 11px;
+  color: #454444;
+}
+
+/* topOffersOnBrands styles */
+.topOffersOnBrands {
+  padding: 15px;
+}
+.topOffersOnBrands h2 {
+  font-size: 16px;
+  margin-bottom: 15px;
+}
+
+.topOffersOnBrands .card {
+  border: 1px solid #bebebe;
+  border-radius: 10px;
+  padding: 6px;
+  width: 161px;
+}
+.topOffersOnBrands .card img {
+  border-radius: 10px;
+}
+.topOffersOnBrands .card h3 {
+  margin: 10px 0;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Trending Products styles */
+.trendingProducts {
+  padding: 25px 0px 25px 15px;
+  margin-bottom: 100px;
+  background-color: #3b62ff;
+  margin: 25px 0;
+}
+.trendingProducts h2 {
+  font-size: 16px;
+}
+.trendingProductsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  color: #fff;
+  padding-right: 15px;
+}
+.trendingProducts button {
+  color: #fff;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+.trendingProducts .card {
+  border: 1px solid #bebebe;
+  border-radius: 10px;
+  padding: 6px;
+  background-color: #fff;
+  width: 161px;
+}
+.trendingProducts .card img {
+  border-radius: 10px;
+}
+.trendingProducts .card h3 {
+  margin: 5px 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #454444;
+}
+.trendingProducts .card p {
+  color: #3b62ff;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 15px;
+  text-align: center;
+}
+.trendingProducts .card s {
+  font-size: 11px;
+  color: #454444;
+}
+
+/* topBrands styles */
+.topBrands {
+  padding: 15px 15px 30px 15px;
+}
+.topBrands h2 {
+  font-size: 16px;
+  margin-bottom: 15px;
+}
+.topBrands img {
+  border-radius: 50%;
+  box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;
+}
+
+/* Banner slider */
+.sliderBanner {
+  padding: 15px;
+}
+.sliderBanner img {
+  border-radius: 15px;
+  width: 100%;
+  object-fit: cover;
+}
+
+/* Featured Products styles */
+.recentlyViewed {
+  padding: 15px;
+}
+.recentlyViewed h2 {
+  font-size: 16px;
+  margin-bottom: 15px;
+}
+.recentlyViewed .card {
+  border: 1px solid #bebebe;
+  border-radius: 20px;
+  padding: 6px;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.recentlyViewed .card img {
+  border-radius: 15px;
+}
+.recentlyViewed .card h3 {
+  margin: 0 0 10px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #454444;
+}
+.recentlyViewed .card p {
+  color: #3b62ff;
+  font-size: 14px;
+  font-weight: 700;
+}
+.recentlyViewed .card s {
+  font-size: 12px;
+  color: #454444;
+}
